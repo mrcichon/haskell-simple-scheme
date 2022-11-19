@@ -2,6 +2,7 @@ module Main where
 import Text.ParserCombinators.Parsec hiding (spaces) 
 import System.Environment
 import Control.Monad
+import Control.Monad.Except
 
 
 instance Show LispVal where show = showVal
@@ -25,6 +26,15 @@ data LispVal = Atom String
              | Number Integer
              | String String
              | Bool Bool
+
+
+data LispError = NumArgs Integer [LispVal]
+                | TypeMismatch String LispVal
+                | Parser ParseError
+                | BadSpecialForm String LispVal
+                | NotFunction String String
+                | UnboundVar String String
+                | Default String
 
 escapedChars :: Parser Char
 escapedChars = do char '\\'
@@ -136,7 +146,19 @@ unpackNum (List [n]) = unpackNum n
 unpackNum _ = 0
 
 
+showError :: LispError -> String
+showError (NumArgs expected found) 		= "Expected: " ++ show expected ++ "Found: " ++ show found 
+showError (BadSpecialForm message form) 	= message ++ ": " ++ show form
+showError (NotFunction message function) 	= message ++ ": " ++ show function
+showError (UnboundVar message var) 		= message ++ ": " ++ var
+showError (Default message) 			= message
+showError (Parser parseErr)			= show parseErr
 
+instance Show LispError where show = showError
+type ThrowsError = Either LispError
  
 main :: IO ()
 main = getArgs >>= print . eval. readExpr .head
+
+
+
